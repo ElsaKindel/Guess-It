@@ -2,6 +2,9 @@ module Main exposing (main)
 
 import Browser
 import Html exposing (Html, div, text)
+import Array
+import Random.List exposing(shuffle)
+
 
 type alias Model =
     { rows : List String }
@@ -1013,14 +1016,23 @@ initialModel =
     , "these"
     , "travel"
     , "warm"
-    , "wind"] }
+    , "wind"]}
 
-rowItem: String -> Html msg
-rowItem id =
-    div []
-        [ text id ]
+--myArray : Model -> Array
+myArray model = 
+    Array.fromList model.rows
+
+--myItem : Array -> String
+myItem myarray = 
+    Array.get 134 myarray
+
+fromJust : Maybe String -> String
+fromJust x = case x of
+    Just y -> y
+    Nothing -> "Nothing"
+
 
 view : Model -> Html msg
 view model =
     div []
-        (List.map rowItem model.rows)
+        [text<|fromJust<|myItem<|myArray<|model]
