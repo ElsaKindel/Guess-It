@@ -4,6 +4,7 @@ import Browser
 import Html exposing (Html, div, text)
 import Array
 import Random.List exposing(shuffle)
+import Random
 
 
 type alias Model =
@@ -1018,13 +1019,51 @@ initialModel =
     , "warm"
     , "wind"]}
 
+type alias NbrAleatoire =
+  { nombre : Int
+  }
+
+init : () -> (NbrAleatoire, Cmd Msg)
+init _ =
+  ( NbrAleatoire 1
+  , Cmd.none
+  )
+
+--Update
+
+type Msg
+  = Roll
+  | NewFace Int
+
+
+update : Msg -> NbrAleatoire -> (NbrAleatoire, Cmd Msg)
+update msg nbrAleatoire =
+  case msg of
+    Roll ->
+      ( nbrAleatoire
+      , Random.generate NewFace (Random.int 0 999)
+      )
+
+    NewFace newFace ->
+      ( NbrAleatoire newFace
+      , Cmd.none
+      )
+
+-- SUBSCRIPTIONS
+
+
+subscriptions : NbrAleatoire -> Sub Msg
+subscriptions nbrAleatoire =
+  Sub.none
+
+
 --myArray : Model -> Array
 myArray model = 
     Array.fromList model.rows
 
 --myItem : Array -> String
 myItem myarray = 
-    Array.get 134 myarray
+    Array.get nbrAleatoire.nombre myarray
 
 fromJust : Maybe String -> String
 fromJust x = case x of
