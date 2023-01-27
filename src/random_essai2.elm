@@ -9,16 +9,11 @@ import Random
 
 
 main =
-  Browser.element
-    { init = init
-    , update = update
-    , subscriptions = subscriptions
-    , view = view
-    }
+    view<|init()
 
 
 
--- NbrAleatoire (c'est le modèle)
+-- NbrAleatoire
 
 type alias NbrAleatoire =
   { nombre : Int
@@ -65,10 +60,9 @@ subscriptions nbrAleatoire =
 -- VIEW
 
 
-view : NbrAleatoire -> Html Msg
+view : (NbrAleatoire, Cmd Msg) -> Html Msg
 view nbrAleatoire =
   div []
-    [ h1 [] [ text (String.fromInt (nbrAleatoire.nombre*2)++" "++String.fromInt (nbrAleatoire.nombre) ) ]
+    [ h1 [] [ text (String.fromInt (Tuple.first(nbrAleatoire)).nombre) ]
     , button [ onClick Roll ] [ text "Cliquez pour commencer !" ]
     ]
-  

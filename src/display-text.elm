@@ -5,14 +5,15 @@ import Html exposing (Html, div, text)
 import Array
 import Random.List exposing(shuffle)
 import Random
+import Browser
 
 
 type alias Model =
     { rows : List String }
 
-main : Html msg
+--main : Html msg
 main =
-    view initialModel
+  view initialModel 
 
 
 
@@ -1033,7 +1034,7 @@ init _ =
 
 type Msg
   = Roll
-  | NewFace Int
+  | NouveauNombre Int
 
 
 update : Msg -> NbrAleatoire -> (NbrAleatoire, Cmd Msg)
@@ -1041,11 +1042,11 @@ update msg nbrAleatoire =
   case msg of
     Roll ->
       ( nbrAleatoire
-      , Random.generate NewFace (Random.int 0 999)
+      , Random.generate NouveauNombre (Random.int 0 999)
       )
 
-    NewFace newFace ->
-      ( NbrAleatoire newFace
+    NouveauNombre nouveauNombre ->
+      ( NbrAleatoire nouveauNombre
       , Cmd.none
       )
 
@@ -1056,13 +1057,15 @@ subscriptions : NbrAleatoire -> Sub Msg
 subscriptions nbrAleatoire =
   Sub.none
 
+{-aleatoire : NbrAleatoire -> CmdMsg -> NbrAleatoire
+aleatoire nbrAleatoire messageDeCommande =
+    nbrAleatoire-}
 
---myArray : Model -> Array
 myArray model = 
     Array.fromList model.rows
 
---myItem : Array -> String
-myItem myarray = 
+
+myItem myarray nbrAleatoire = 
     Array.get nbrAleatoire.nombre myarray
 
 fromJust : Maybe String -> String
@@ -1071,7 +1074,12 @@ fromJust x = case x of
     Nothing -> "Nothing"
 
 
-view : Model -> Html msg
-view model =
+{-view : Model -> NbrAleatoire -> Html msg
+view model nombreAleatoire =
     div []
-        [text<|fromJust<|myItem<|myArray<|model]
+        [text<|fromJust<|myItem<|(aleatoire()<|myArray)<|model]-}
+view : NbrAleatoire -> Cmd Msg -> Html Msg
+view nbrAleatoire cmdMsg =
+  div []
+    [ text (String.fromInt nbrAleatoire.nombre) ]
+    --, button [ onClick Roll ] [ text "Roll" ]
