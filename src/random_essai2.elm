@@ -9,7 +9,12 @@ import Random
 
 
 main =
-    view<|init()
+  Browser.element
+    { init = init
+    , update = update
+    , subscriptions = subscriptions
+    , view = view
+    }
 
 
 
@@ -60,9 +65,9 @@ subscriptions nbrAleatoire =
 -- VIEW
 
 
-view : (NbrAleatoire, Cmd Msg) -> Html Msg
+view : NbrAleatoire -> Html Msg
 view nbrAleatoire =
   div []
-    [ h1 [] [ text (String.fromInt (Tuple.first(nbrAleatoire)).nombre) ]
+    [ h1 [] [ text (String.fromInt nbrAleatoire.nombre) ]
     , button [ onClick Roll ] [ text "Cliquez pour commencer !" ]
     ]
