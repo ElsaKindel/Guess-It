@@ -9,6 +9,7 @@ import Json.Decode as Decode
         ( Decoder
         , decodeString
         , field
+        , at
         , int
         , list
         , map3
@@ -16,14 +17,27 @@ import Json.Decode as Decode
         )
 
 
-type alias Post =
-    { meaning : String}
+type alias Mot =
+    { word : String
+    , meanings : List Meanings
+    }
+
+type alias Meanings =
+    {partOfSpeech : List String
+    , definitions : List String
+    }
 
 
 type alias Model =
-    { posts : List Post
+    { mot : Mot
     , errorMessage : Maybe String
     }
+
+type alias Definition =
+    {def : String}
+
+type alias PartOfSpeech =
+    {pos : String}
 
 
 view : Model -> Html Msg
@@ -31,19 +45,36 @@ view model =
     div []
         [ button [ onClick SendHttpRequest ]
             [ text "Get data from server" ]
-        , viewPostsOrError model
+        , viewTout model.mot
         ]
+            
 
+viewTout : Mot -> Html Msg
+viewTout mot = 
+    div [] [text<|viewAddition<|mot.meanings ]
 
-viewPostsOrError : Model -> Html Msg
-viewPostsOrError model =
-    case model.errorMessage of
-        Just message ->
-            viewError message
+viewAddition : List Meanings -> String
+viewAddition liste = case liste of
+    []->"."
+    (x::xs)-> viewMeanings x ++ (viewAddition<|xs)
 
-        Nothing ->
-            viewPosts model.posts
+viewMots : String -> String
+viewMots mot =
+    mot
 
+viewMeanings : Meanings -> String
+viewMeanings meanings =
+    viewPartOfSpeech meanings.partOfSpeech ++ viewDefinitions meanings.definitions
+
+viewDefinitions : List String-> String
+viewDefinitions liste = case liste of
+    []->"."
+    (x::xs)-> viewMots x ++ (viewDefinitions<|xs)
+
+viewPartOfSpeech : List String -> String
+viewPartOfSpeech liste = case liste of
+    []->"."
+    (x::xs)-> viewMots x ++ (viewPartOfSpeech<|xs)
 
 viewError : String -> Html Msg
 viewError errorMessage =
@@ -57,44 +88,43 @@ viewError errorMessage =
         ]
 
 
-viewPosts : List Post -> Html Msg
-viewPosts posts =
-    div []
-        [ h3 [] [ text "Posts" ]
-        , table []
-            ([ viewTableHeader ] ++ List.map viewPost posts)
-        ]
-
-
-viewTableHeader : Html Msg
-viewTableHeader =
-    th []
-        [ text "Meaning" ]
-
-
-viewPost : Post -> Html Msg
-viewPost post =
-    td []
-        [ text post.meaning ]
-
 
 
 type Msg
     = SendHttpRequest
-    | DataReceived (Result Http.Error (List Post))
+    | DataReceived (Result Http.Error (List Mot))
 
 
-postDecoder : Decoder Post
-postDecoder =
-    Post
-        (field "meaning" string)
+motDecoder : Decoder Mot
+motDecoder =
+    Decode.map2 Mot
+        (Decode.field  "word" Decode.string)
+        (Decode.field "meanings"  <| Decode.list meaningsDecoder )
+
+meaningsDecoder : Decoder Meanings
+meaningsDecoder =
+    Decode.map2 Meanings
+        (Decode.field "partOfSpeech" <| Decode.list partOfSpeechDecoder)
+        (Decode.field "definitions" <| Decode.list definitionsDecoder)
+
+definitionsDecoder : Decoder Definition
+definitionsDecoder =
+    Decode.map Definition
+        (Decode.field "definition" Decode.string)
+
+partOfSpeechDecoder : Decoder PartOfSpeech
+partOfSpeechDecoder =
+    Decode.map PartOfSpeech
+        (Decode.field "partOfSpeech" Decode.string)
+
+    
 
 
 httpCommand : Cmd Msg
 httpCommand =
     Http.get
-        { url = "https://api.dictionaryapi.dev/api/v2/entries/en/hello"
-        , expect = Http.expectJson DataReceived (list postDecoder)
+        { url = "https://api.dictionaryapi.dev/api/v2/entries/en/yard"
+        , expect = Http.expectJson DataReceived (list motDecoder)
         }
 
 
@@ -141,7 +171,7 @@ buildErrorMessage httpError =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { posts = []
+    ( { mot = {word = "hello", meanings=[]}
       , errorMessage = Nothing
       }
     , Cmd.none
