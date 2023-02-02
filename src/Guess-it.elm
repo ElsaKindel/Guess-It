@@ -1,36 +1,259 @@
-module Main exposing (main)
+module DecodingJson exposing (main)
 
-import Browser
-import Html exposing (Html, div, text)
+import Html exposing (Html, div, text, input)
+import Html.Attributes exposing( placeholder)
 import Array
 import Random.List exposing(shuffle)
-import Html exposing (..)
 import Html.Events exposing (..)
 import Random
 import Http
-
+import Browser
+import Html exposing (..)
+import Html exposing (pre, text)
+import Html.Events exposing (onClick, onInput)
+import Http
+import Json.Decode as Decode
+    exposing
+        ( Decoder
+        , decodeString
+        , field
+        , at
+        , int
+        , list
+        , map3
+        , string
+        )
 
 type alias Model =
-    { rows : List String
-    , nombre : Int 
+    { mot : List Mot
+    , errorMessage : Maybe String
+    , url : String
+    , trouve : Bool
+    , montre : Bool
+    , rows : List String
+    , nombre : Int
     }
 
---main : Html msg
+type alias Mot =
+    { word : String
+    , meanings : List Meanings
+    }
+
+type alias Meanings =
+    {partOfSpeech : String
+    , definitions : List Definition
+    }
+
+type alias Definition =
+    {def : String}
+
+type Msg
+    = DataReceived (Result Http.Error (List Mot))
+    | Roll
+    | NouveauNombre Int
+    | Change String
+    | Reponse
+
+
+-- MAIN
+
+
+main : Program () Model Msg
 main =
-  --view initialModel
-  Browser.element
-    { init = init
-    , update = update
-    , subscriptions = subscriptions
-    , view = view
-    }
- 
+    Browser.element
+        { init = init
+        , view = view
+        , update = update
+        , subscriptions = \_ -> Sub.none
+        }
 
+
+-- VIEW
+
+view : Model -> Html Msg
+view model =
+    if model.trouve == False && model.montre == False then
+        div []
+            [ input [onInput Change][] 
+            ,button [ onClick Roll ] [ text "Commencer à jouer" ]
+            ,button [ onClick Reponse ] [ text "Reponse" ]
+            , pre [] [text(viewTout<|model.mot)]
+            ]
+    else if model.montre == True then
+        div []
+            [ input [onInput Change][] 
+            ,button [ onClick Roll ] [ text "Jouer à nouveau" ]
+            ,button [ onClick Reponse ] [ text "Reponse" ]
+            , pre [] [text<|fromJust<|myItem<|myArray<|model]
+            , pre [] [text(viewTout<|model.mot)]
+            ]
+    else 
+         div []
+            [ input [onInput Change][] 
+            ,button [ onClick Roll ] [ text "Jouer à nouveau" ]
+            ,button [ onClick Reponse ] [ text "Reponse" ]
+            , pre [] [text "Bravo vous avez trouvé"]
+            , pre [] [text(viewTout<|model.mot)]
+            ]
+            
+
+viewTout : List Mot -> String
+viewTout liste = case liste of
+    []->" "
+    (x::xs)-> viewAddition x.meanings ++ " \n "++ (viewTout<|xs) ++ " \n "
+
+viewAddition : List Meanings -> String
+viewAddition liste = case liste of
+    []->" "
+    (x::xs)-> viewMeanings x ++ " \n "++ (viewAddition<|xs) ++ " \n "
+
+viewMots : String -> String
+viewMots mot =
+    mot
+
+viewMeanings : Meanings -> String
+viewMeanings meanings =
+    viewMots meanings.partOfSpeech ++ " \n "++viewDefinitions meanings.definitions++" \n "
+
+viewDefinitions : List Definition-> String
+viewDefinitions liste = case liste of
+    []->" "
+    (x::xs)-> viewMots x.def ++ " \n "++ (viewDefinitions<|xs)++ " \n "
+
+
+viewError : String -> Html Msg
+viewError errorMessage =
+    let
+        errorHeading =
+            "Couldn't fetch data at this time."
+    in
+    div []
+        [ h3 [] [ text errorHeading ]
+        , text ("Error: " ++ errorMessage)
+        ]
+
+
+-- DECODER
+
+motDecoder : Decoder Mot
+motDecoder =
+    Decode.map2 Mot
+        (Decode.field  "word" Decode.string)
+        (Decode.field "meanings"  <| Decode.list meaningsDecoder )
+
+meaningsDecoder : Decoder Meanings
+meaningsDecoder =
+    Decode.map2 Meanings
+        (Decode.field "partOfSpeech" Decode.string)
+        (Decode.field "definitions" (Decode.list definitionsDecoder))
+
+definitionsDecoder : Decoder Definition
+definitionsDecoder =
+    Decode.map Definition
+        (Decode.field "definition" Decode.string)
+
+
+httpCommand : Model -> Cmd Msg
+httpCommand model =
+    Http.get
+        { url = model.url++(fromJust<|myItem<|myArray<|model)
+        , expect = Http.expectJson DataReceived (list motDecoder)
+        }
+
+-- UPDATE
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        Roll ->
+            ( model
+            , Random.generate NouveauNombre (Random.int 0 999)
+            )
+        NouveauNombre nouveauNombre ->
+            ( {mot=model.mot, errorMessage=model.errorMessage, url = model.url, trouve = False, montre = False, rows = model.rows, nombre = nouveauNombre}
+            , httpCommand({mot=model.mot, errorMessage=model.errorMessage, url = model.url, trouve = False, montre =False, rows = model.rows, nombre = nouveauNombre})
+            )
+
+        DataReceived (Ok mot) ->
+            ( { model
+                | mot = mot
+                , errorMessage = Nothing
+              }
+            , Cmd.none
+            )
+
+        DataReceived (Err httpError) ->
+            ( { model
+                | errorMessage = Just (buildErrorMessage httpError)
+              }
+            , Cmd.none
+            )
+
+        Change str->
+            if str == (fromJust<|myItem<|myArray<|model) then
+              ({mot=model.mot, errorMessage=model.errorMessage, url = model.url, trouve = True, montre = False, rows = model.rows, nombre = model.nombre} ,Cmd.none)
+            else
+              (model,Cmd.none)
+
+        Reponse ->
+            ({mot=model.mot, errorMessage=model.errorMessage, url = model.url, trouve = model.trouve, montre = True, rows = model.rows, nombre = model.nombre} ,Cmd.none)
+
+
+
+
+
+buildErrorMessage : Http.Error -> String
+buildErrorMessage httpError =
+    case httpError of
+        Http.BadUrl message ->
+            message
+
+        Http.Timeout ->
+            "Server is taking too long to respond. Please try again later."
+
+        Http.NetworkError ->
+            "Unable to reach server."
+
+        Http.BadStatus statusCode ->
+            "Request failed with status code: " ++ String.fromInt statusCode
+
+        Http.BadBody message ->
+            message
+
+-- GESTION LISTE DE MOTS
+
+myArray : Model ->  {tableau : Array.Array String, nombre : Int}
+myArray model = 
+    {tableau = Array.fromList model.rows, nombre= model.nombre}
+
+
+myItem myarray = 
+    Array.get myarray.nombre myarray.tableau
+
+fromJust : Maybe String -> String
+fromJust x = case x of
+    Just y -> y
+    Nothing -> "Nothing"
+
+
+-- INIT
+
+init : () -> ( Model, Cmd Msg )
+init _ =
+    ( initialModel
+    , Cmd.none
+
+    )
 
 
 initialModel : Model
 initialModel =
-    { rows =
+    {mot = [{word = "hello", meanings=[]}] 
+    ,errorMessage = Nothing
+    ,url = "https://api.dictionaryapi.dev/api/v2/entries/en/"
+    ,trouve = False
+    ,montre = False
+    ,rows =
     [ "a"
     , "anywhere"
     , "below"
@@ -1031,62 +1254,3 @@ initialModel =
     , "warm"
     , "wind"], 
     nombre = 463}
-
-
-init : () -> (Model, Cmd Msg)
-init _ =
-  ( initialModel
-  , Cmd.none
-  )
-
---Update
-
-type Msg
-  = Roll
-  | NouveauNombre Int
-
-
-update : Msg -> Model -> (Model, Cmd Msg)
-update msg model =
-  case msg of
-    Roll ->
-      ( model
-      , Random.generate NouveauNombre (Random.int 0 999)
-      )
-
-    NouveauNombre nouveauNombre ->
-      ( {rows = model.rows, nombre = nouveauNombre}
-      , Cmd.none
-      )
-
--- SUBSCRIPTIONS
-
-
-subscriptions : Model -> Sub Msg
-subscriptions model =
-  Sub.none
-
-{-aleatoire : NbrAleatoire -> CmdMsg -> NbrAleatoire
-aleatoire nbrAleatoire messageDeCommande =
-    nbrAleatoire-}
-
-myArray : Model ->  {tableau : Array.Array String, nombre : Int}
-myArray model = 
-    {tableau = Array.fromList model.rows, nombre= model.nombre}
-
-
-myItem myarray = 
-    Array.get myarray.nombre myarray.tableau
-
-fromJust : Maybe String -> String
-fromJust x = case x of
-    Just y -> y
-    Nothing -> "Nothing"
-
-
-view : Model  -> Html Msg
-view model =
-  div []
-      [h1[] [text<|fromJust<|myItem<|myArray<|model]
-      , button [ onClick Roll ] [ text "Cliquez pour commencer !" ]
-    ]
