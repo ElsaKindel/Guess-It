@@ -121,16 +121,6 @@ viewDefinitions liste = case liste of
     (x::xs)-> viewMots x.def ++ " \n "++ (viewDefinitions<|xs)++ " \n "
 
 
-viewError : String -> Html Msg
-viewError errorMessage =
-    let
-        errorHeading =
-            "Couldn't fetch data at this time."
-    in
-    div []
-        [ h3 [] [ text errorHeading ]
-        , text ("Error: " ++ errorMessage)
-        ]
 
 
 -- DECODER
